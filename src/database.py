@@ -17,12 +17,18 @@ def get_connection():
     return connection
 
 
+
 def initialize_database():
     with get_connection() as connection:
         schema = SCHEMA_PATH.read_text(encoding="utf-8")
         connection.executescript(schema)
 
+        runs_schema_path = BASE_DIR / "sql" / "pipeline_runs.sql"
+        runs_schema = runs_schema_path.read_text(encoding="utf-8")
+        connection.executescript(runs_schema)
+
     print(f"Database initialized: {DB_PATH}")
+
 
 def load_cleaned_weather():
     csv_path = BASE_DIR / "data" / "processed" / "weather_clean.csv"
@@ -89,7 +95,39 @@ def load_cleaned_weather():
     print(f"Records processed: {len(records)}")
     print(f"Total unique records in database: {count}")
 
-    
+
+def start_pipeline_run():
+    with get_connection() as connection:
+        cursor = connection.execute(
+            """
+            INSERT INTO pipeline_runs (status)
+            VALUES ('RUNNING')
+            """
+        )
+        return cursor.lastrowid
+
+
+def finish_pipeline_run(
+    run_id,
+    status,
+    records_processed=0,
+    error_message=None,
+):
+    with get_connection() as connection:
+        connection.execute(
+            """
+            UPDATE pipeline_runs
+            SET completed_at = CURRENT_TIMESTAMP,
+                status = ?,
+                records_processed = ?,
+                error_message = ?
+            WHERE run_id = ?
+            """,
+            (status, records_processed, error_message, run_id),
+        )
+
+
+
 if __name__ == "__main__":
     initialize_database()
     load_cleaned_weather()
