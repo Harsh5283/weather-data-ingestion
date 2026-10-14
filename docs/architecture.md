@@ -1,31 +1,45 @@
 
 # Weather Data Ingestion — Architecture
 
-## Objective
-Build a Python-based pipeline that collects weather
-data, preserves raw responses, validates measurements,
-and prepares clean records for SQL storage and analysis.
+## Overview
 
-## Data Source
-Open-Meteo Forecast API.
+The pipeline fetches weather observations from the Open-Meteo API,
+stores the raw response, validates and transforms the data,
+loads curated records into SQLite, calculates daily metrics,
+and generates a concise weather summary.
 
-## Current Pipeline
-1. Fetch hourly weather data for Gorakhpur.
-2. Save the original API response as JSON in data/raw/.
-3. Load the JSON into Pandas.
-4. Validate timestamps and weather measurements.
-5. Remove duplicate city-and-timestamp records.
-6. Save clean records to data/processed/weather_clean.csv.
+## Data Flow
 
-## Technology Stack
-- Python
-- Requests
-- Pandas
-- SQLite (planned)
-- Pytest (planned)
+```mermaid
+flowchart TD
+    A[Open-Meteo Public API] --> B[Weather Ingestion]
+    B --> C[Raw JSON Files]
+    C --> D[Validation and Transformation]
+    D --> E[Cleaned Weather CSV]
+    E --> F[SQLite Database]
+    F --> G[Daily Weather Metrics]
+    G --> H[AI Summary Interface]
+    H --> I{AI Available?}
+    I -->|Yes| J[AI-Generated Summary]
+    I -->|No or Failure| K[Local Fallback Summary]
+    J --> L[weather_summary.json]
+    K --> L
+    F --> M[Pipeline Run Logs]
+```
 
-## Next Steps
-- Create SQL tables and load curated records.
-- Implement incremental ingestion and upserts.
-- Add an AI-generated weather summary.
-- Write automated tests.
+## Main Components
+
+- **Ingestion:** Retrieves weather data from Open-Meteo and saves the raw response.
+- **Transformation:** Parses timestamps, converts measurements to numeric values, handles invalid measurements, and removes duplicate records.
+- **Database:** Stores curated weather records in SQLite using a unique city-and-timestamp key.
+- **Metrics:** Calculates daily temperature, humidity, precipitation, and wind metrics.
+- **AI summary:** Uses an isolated summary interface with a local fallback if the provider is unavailable.
+- **Testing:** Validates data transformation, duplicate handling, invalid measurements, and AI fallback behavior.
+
+## Reliability
+
+- Retries are configured for selected transient API errors.
+- Database upserts support repeated ingestion without duplicate city/timestamp records.
+- Invalid measurements are handled during transformation.
+- AI provider failures fall back to a local summary.
+- Pipeline run status and errors can be recorded in SQLite.

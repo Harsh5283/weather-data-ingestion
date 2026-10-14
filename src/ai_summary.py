@@ -1,48 +1,83 @@
 
-import json
 import logging
-from pathlib import Path
+import os
 
 import pandas as pd
 
-from src.ai_summary import generate_weather_summary
-from src.database import get_connection
-from src.metrics import METRICS_QUERY
-
-BASE_DIR = Path(__file__).resolve().parent.parent
-OUTPUT_DIR = BASE_DIR / "data" / "processed"
-
-logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
-def main():
-    with get_connection() as connection:
-        metrics = pd.read_sql_query(METRICS_QUERY, connection)
+def build_weather_prompt(metrics: dict) -> str:
+    """Build a prompt using the supplied daily weather metrics."""
+    return f"""
+You are a weather data analyst. Write a concise summary in 2-3 sentences.
+Use only the figures provided. Do not invent forecasts, causes, or safety advice.
 
-    if metrics.empty:
-        raise ValueError("No daily weather metrics available.")
-
-    # Generate a summary for the most recent date.
-    latest = metrics.iloc[-1].to_dict()
-    result = generate_weather_summary(latest)
-
-    output = {
-        "city": latest["city"],
-        "date": latest["weather_date"],
-        "method": result["method"],
-        "summary": result["summary"],
-    }
-
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    output_path = OUTPUT_DIR / "weather_summary.json"
-
-    output_path.write_text(
-        json.dumps(output, indent=2, allow_nan=False),
-        encoding="utf-8",
-    )
-
-    print(json.dumps(output, indent=2))
+City: {metrics.get("city", "Unknown")}
+Date: {metrics.get("weather_date", "Unknown")}
+Average temperature: {metrics.get("avg_temperature")} °C
+Minimum temperature: {metrics.get("min_temperature")} °C
+Maximum temperature: {metrics.get("max_temperature")} °C
+Average humidity: {metrics.get("avg_humidity")} %
+Total precipitation: {metrics.get("total_precipitation")}
+Average wind speed: {metrics.get("avg_wind_speed")}
+""".strip()
 
 
-if __name__ == "__main__":
-    main()
+def local_summary(metrics: dict) -> str:
+    """Generate a deterministic summary without an external AI service."""
+    city = metrics.get("city", "Unknown city")
+    weather_date = metrics.get("weather_date", "Unknown date")
+
+    parts = [f"Weather summary for {city} on {weather_date}."]
+
+    fields = [
+        ("avg_temperature", "Average temperature", "°C"),
+        ("avg_humidity", "Average humidity", "%"),
+        ("total_precipitation", "Total precipitation", ""),
+        ("avg_wind_speed", "Average wind speed", ""),
+    ]
+
+    for key, label, unit in fields:
+        value = metrics.get(key)
+
+        if value is not None and pd.notna(value):
+            parts.append(f"{label}: {value}{' ' + unit if unit else ''}.")
+        else:
+            parts.append(f"{label}: unavailable.")
+
+    return " ".join(parts)
+
+
+def generate_weather_summary(metrics: dict) -> dict:
+    """Try the configured AI provider; fall back safely if unavailable."""
+    api_key = os.getenv("OPENAI_API_KEY")
+
+    if not api_key:
+        logger.info("No AI API key configured; using local summary.")
+        return {
+            "summary": local_summary(metrics),
+            "method": "local_fallback",
+        }
+
+    try:
+        from openai import OpenAI
+
+        client = OpenAI(api_key=api_key)
+        response = client.responses.create(
+            model=os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
+            input=build_weather_prompt(metrics),
+        )
+
+        summary = response.output_text.strip()
+        if not summary:
+            raise ValueError("The AI provider returned an empty summary.")
+
+        return {"summary": summary, "method": "ai"}
+
+    except Exception:
+        logger.exception("AI summary failed; using local fallback.")
+        return {
+            "summary": local_summary(metrics),
+            "method": "local_fallback",
+        }
