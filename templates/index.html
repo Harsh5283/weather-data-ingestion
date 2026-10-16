@@ -1,0 +1,78 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Forecast</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <main class="container">
+        <h1>Weather Forecast</h1>
+        <p class="subtitle">Search a city to see its local weather.</p>
+
+        <form method="POST" class="search-form">
+            <input
+                type="text"
+                name="city"
+                placeholder="Enter city name, e.g. Delhi"
+                value="{{ city }}"
+                required
+            >
+            <button type="submit">Search</button>
+        </form>
+
+        {% if error %}
+            <p class="error">{{ error }}</p>
+        {% endif %}
+
+        {% if weather %}
+            <section class="current-weather">
+                <h2>
+                    {{ weather.city }}
+                    {% if weather.region %}, {{ weather.region }}{% endif %}
+                    {% if weather.country %}, {{ weather.country }}{% endif %}
+                </h2>
+
+                <p class="temperature">
+                    {{ weather.temperature if weather.temperature is not none else "—" }}°C
+                </p>
+
+                <div class="weather-grid">
+                    <div class="weather-card">
+                        <span>Feels like</span>
+                        <strong>{{ weather.feels_like if weather.feels_like is not none else "—" }}°C</strong>
+                    </div>
+                    <div class="weather-card">
+                        <span>Humidity</span>
+                        <strong>{{ weather.humidity if weather.humidity is not none else "—" }}%</strong>
+                    </div>
+                    <div class="weather-card">
+                        <span>Precipitation</span>
+                        <strong>{{ weather.precipitation if weather.precipitation is not none else "—" }} mm</strong>
+                    </div>
+                    <div class="weather-card">
+                        <span>Wind speed</span>
+                        <strong>{{ weather.wind_speed if weather.wind_speed is not none else "—" }} km/h</strong>
+                    </div>
+                </div>
+            </section>
+
+            <section class="forecast-section">
+                <h2>7-Day Forecast</h2>
+                <div class="forecast-grid">
+                    {% for day in forecast %}
+                        <article class="forecast-card">
+                            <h3>{{ day.date }}</h3>
+                            <p>High: <strong>{{ day.max_temp }}°C</strong></p>
+                            <p>Low: <strong>{{ day.min_temp }}°C</strong></p>
+                            <p>Rain: {{ day.precipitation }} mm</p>
+                        </article>
+                    {% endfor %}
+                </div>
+            </section>
+        {% endif %}
+    </main>
+</body>
+</html>

@@ -20,20 +20,26 @@ SELECT
     ROUND(AVG(wind_speed_10m), 2) AS avg_wind_speed,
     COUNT(*) AS observation_count
 FROM weather_records
+WHERE LOWER(TRIM(city)) = LOWER(TRIM(?))
 GROUP BY city, DATE(time)
 ORDER BY weather_date;
 """
 
 
-def generate_daily_metrics():
+def generate_daily_metrics(city="Bareilly"):
     with get_connection() as connection:
-        metrics = pd.read_sql_query(METRICS_QUERY, connection)
+        metrics = pd.read_sql_query(
+            METRICS_QUERY,
+            connection,
+            params=(city,)
+        )
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
     output_file = OUTPUT_DIR / "daily_weather_metrics.csv"
     metrics.to_csv(output_file, index=False)
 
-    print(f"Daily summaries generated: {len(metrics)}")
+    print(f"Daily summaries generated for {city}: {len(metrics)}")
     print(metrics.to_string(index=False))
     print(f"\nSaved to: {output_file}")
 

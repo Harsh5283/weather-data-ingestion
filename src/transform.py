@@ -2,7 +2,7 @@
 import json
 import logging
 from pathlib import Path
-
+from src.config import CITY, CITY_SLUG, LATITUDE, LONGITUDE
 import pandas as pd
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,14 +20,15 @@ MEASUREMENT_COLUMNS = [
 
 
 def load_latest_raw_data():
-    files = sorted(RAW_DIR.glob("gorakhpur_*.json"))
+    files = sorted(RAW_DIR.glob(f"{CITY_SLUG}_*.json"))
 
     if not files:
-        raise FileNotFoundError("No raw weather data found.")
+        raise FileNotFoundError(
+            f"No raw weather data found for {CITY}."
+        )
 
     with files[-1].open("r", encoding="utf-8") as file:
         return json.load(file)
-
 
 def transform_weather_data(data):
     hourly = data.get("hourly", {})
@@ -47,9 +48,9 @@ def transform_weather_data(data):
     if missing_columns:
         raise ValueError(f"Missing columns: {missing_columns}")
 
-    df["city"] = "Gorakhpur"
-    df["latitude"] = data.get("latitude")
-    df["longitude"] = data.get("longitude")
+    df["city"] = data.get("city", CITY)
+    df["latitude"] = data.get("latitude", LATITUDE)
+    df["longitude"] = data.get("longitude", LONGITUDE)
 
     # Parse timestamps and discard records without valid timestamps.
     df["time"] = pd.to_datetime(df["time"], errors="coerce")

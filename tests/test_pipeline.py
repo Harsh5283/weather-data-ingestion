@@ -8,6 +8,7 @@ from src.transform import transform_weather_data
 
 def sample_weather_data():
     return {
+        "city": "Gorakhpur",
         "latitude": 26.7606,
         "longitude": 83.3732,
         "hourly": {

@@ -7,6 +7,7 @@ from pathlib import Path
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+from src.config import CITY, LATITUDE, LONGITUDE, CITY_SLUG
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 RAW_DIR = BASE_DIR / "data" / "raw"
@@ -14,8 +15,8 @@ RAW_DIR = BASE_DIR / "data" / "raw"
 API_URL = "https://api.open-meteo.com/v1/forecast"
 
 PARAMS = {
-    "latitude": 26.7606,
-    "longitude": 83.3732,
+    "latitude": LATITUDE,
+    "longitude": LONGITUDE,
     "hourly": [
         "temperature_2m",
         "relative_humidity_2m",
@@ -64,7 +65,7 @@ def save_raw_data(data):
     RAW_DIR.mkdir(parents=True, exist_ok=True)
 
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    output_file = RAW_DIR / f"gorakhpur_{timestamp}.json"
+    output_file = RAW_DIR / f"{CITY_SLUG}_{timestamp}.json"
 
     with output_file.open("w", encoding="utf-8") as file:
         json.dump(data, file, indent=2)
@@ -75,10 +76,10 @@ def save_raw_data(data):
 
 def main():
     try:
-        logging.info("Fetching weather data for Gorakhpur...")
+        logging.info("Fetching weather data for %s...", CITY)
         data = fetch_weather()
         save_raw_data(data)
-        logging.info("Ingestion completed successfully.")
+        logging.info("Fetching weather data for %s...", CITY)
 
     except (requests.RequestException, ValueError) as error:
         logging.error("Ingestion failed: %s", error)

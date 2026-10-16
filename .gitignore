@@ -1,7 +1,9 @@
 
 .venv/
 __pycache__/
-*.py[cod]
-.env
-.DS_Store
 .pytest_cache/
+.env
+
+data/raw/
+data/processed/
+data/weather.db
